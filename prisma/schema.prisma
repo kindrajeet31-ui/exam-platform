@@ -1,0 +1,117 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Exam {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  tests       Test[]
+  createdAt   DateTime @default(now())
+}
+model Test {
+  id            Int          @id @default(autoincrement())
+  title         String
+  description   String?
+  duration      Int          @default(30)
+  examId        Int?
+  setNumber     Int?
+  availableFrom DateTime?
+  isPublished   Boolean      @default(true)
+
+  exam          Exam?        @relation(fields: [examId], references: [id], onDelete: SetNull)
+  questions     Question[]
+  results       ExamResult[]
+  createdAt     DateTime     @default(now())
+}
+
+model Question {
+  id                Int      @id @default(autoincrement())
+  testId            Int
+  subject String?
+topic   String?
+
+  // English
+  questionText      String
+  optionA           String
+  optionB           String
+  optionC           String
+  optionD           String
+  explanation       String?
+
+  // Hindi
+  questionTextHi    String?
+  optionAHi         String?
+  optionBHi         String?
+  optionCHi         String?
+  optionDHi         String?
+  explanationHi     String?
+
+  correctAnswer     String
+
+  test              Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+reports QuestionReport[]
+studentAnswers StudentAnswer[]
+}
+
+model Student {
+  id           Int          @id @default(autoincrement())
+  name         String
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  examResults  ExamResult[]
+  questionReports QuestionReport[]
+}
+
+model ExamResult {
+  id              Int             @id @default(autoincrement())
+  studentId       Int?
+  testId          Int
+  score           Int
+  totalQuestions  Int
+  createdAt       DateTime        @default(now())
+  student         Student?        @relation(fields: [studentId], references: [id])
+  test            Test             @relation(fields: [testId], references: [id])
+  answers         StudentAnswer[]
+  @@unique([studentId, testId])
+}
+
+model StudentAnswer {
+  id             Int        @id @default(autoincrement())
+  examResultId   Int
+  questionId     Int
+  selectedOption Int
+  isCorrect      Boolean
+  examResult     ExamResult @relation(fields: [examResultId], references: [id], onDelete: Cascade)
+  question       Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([examResultId, questionId])
+}
+
+model Admin {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+model QuestionReport {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  questionId  Int
+  category    String
+  description String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
