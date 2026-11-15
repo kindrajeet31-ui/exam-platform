@@ -242,7 +242,7 @@ const existingKeys = new Set(
   existingQuestions.map((q) => makeQuestionKey(q))
 );
 
-let savedCount = 0;
+const newQuestions = [];
 let skippedCount = 0;
 
 for (const question of preparedQuestions) {
@@ -253,13 +253,24 @@ for (const question of preparedQuestions) {
     continue;
   }
 
-  await prisma.question.create({
-    data: question,
-  });
-
+  newQuestions.push(question);
   existingKeys.add(key);
-  savedCount++;
 }
+
+const result = await prisma.question.createMany({
+  data: newQuestions,
+});
+
+const savedCount = result.count;
+return NextResponse.json(
+  {
+    success: true,
+    message: `Uploaded ${savedCount} questions. Skipped ${skippedCount} duplicates.`,
+    savedCount,
+    skippedCount,
+  },
+  { status: 201 }
+);
 
 return NextResponse.json(
   {

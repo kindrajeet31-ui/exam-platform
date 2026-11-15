@@ -403,41 +403,6 @@ if (!response.ok) {
     </button>
   </>
 )}
-    <>
-      <h3>Preview: {csvQuestions.length} Questions</h3>
-
-      {csvQuestions.slice(0, 5).map((q, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "12px",
-            marginBottom: "10px",
-            background: "#f3f4f6",
-            borderRadius: "6px",
-          }}
-        >
-          <strong>{index + 1}. {q.questionText}</strong>
-          <p>A. {q.optionA}</p>
-          <p>B. {q.optionB}</p>
-          <p>C. {q.optionC}</p>
-          <p>D. {q.optionD}</p>
-          <p>Correct Answer: {q.correctAnswer}</p>
-        </div>
-      ))}
-
-      {csvQuestions.length > 5 && (
-        <p>Showing first 5 questions only.</p>
-      )}
-
-<button
-  type="button"
-  style={styles.button}
-  onClick={uploadCSVQuestions}
-  disabled={csvLoading}
->
-  {csvLoading ? "Uploading..." : "Upload All Questions"}
-</button>
-    </>
 </div>
 
 
