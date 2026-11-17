@@ -111,12 +111,22 @@ export async function POST(request: Request) {
       },
     });
 
+    // Create admin session
     response.cookies.set("admin_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 7 * 24 * 60 * 60,
+    });
+
+    // Clear student session
+    response.cookies.set("student_session", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
     });
 
     return response;

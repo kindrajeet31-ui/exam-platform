@@ -87,7 +87,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create a session that expires in 7 days.
     const expiresAt = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
 
     const payload = Buffer.from(
@@ -112,12 +111,22 @@ export async function POST(request: Request) {
       },
     });
 
+    // Create student session
     response.cookies.set("student_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 7 * 24 * 60 * 60,
+    });
+
+    // Clear admin session
+    response.cookies.set("admin_session", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
     });
 
     return response;
