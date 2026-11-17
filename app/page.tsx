@@ -2,22 +2,6 @@
 export default function HomePage() {
   return (
     <main className="home-page">
-      <nav className="home-nav">
-        <a href="/" className="brand">
-          <span className="brand-icon">E</span>
-          <span>
-            EXAM<span className="brand-blue">PREP</span>
-            <small>SSC • PCS • RAILWAY</small>
-          </span>
-        </a>
-
-        <div className="nav-links">
-          <a href="/tests">Mock Tests</a>
-          <a href="/student">Student Dashboard</a>
-          <a href="/results">Results</a>
-          <a href="/login" className="nav-login">Login</a>
-        </div>
-      </nav>
 
       <div className="home-container">
         <section className="hero">
