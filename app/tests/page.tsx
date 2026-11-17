@@ -16,9 +16,6 @@ type Test = {
 
 type ExamSet = Test & {
   setNumber: number | null;
-  availableFrom: string | null;
-  isPublished: boolean;
-  isAvailable: boolean;
 };
 
 type Exam = {
@@ -28,18 +25,57 @@ type Exam = {
   sets: ExamSet[];
 };
 
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#f1f5f9",
+    padding: "32px 16px",
+    color: "#0f172a",
+  } as const,
+  container: {
+    maxWidth: "1150px",
+    margin: "0 auto",
+  } as const,
+  header: {
+    background: "linear-gradient(120deg, #0f2d59, #1d4ed8)",
+    color: "white",
+    borderRadius: "20px",
+    padding: "30px",
+    marginBottom: "24px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap" as const,
+    gap: "18px",
+  },
+  panel: {
+    background: "white",
+    border: "1px solid #e2e8f0",
+    borderRadius: "18px",
+    padding: "24px",
+    boxShadow: "0 5px 20px rgba(15, 23, 42, 0.04)",
+  } as const,
+  button: {
+    display: "inline-block",
+    background: "#2563eb",
+    color: "white",
+    padding: "11px 18px",
+    borderRadius: "9px",
+    textDecoration: "none",
+    fontWeight: 700,
+    border: "none",
+    cursor: "pointer",
+  } as const,
+  muted: {
+    color: "#64748b",
+    fontSize: "14px",
+  } as const,
+};
+
 export default function TestsPage() {
   const [tests, setTests] = useState<Test[]>([]);
-  const [currentTime, setCurrentTime] = useState(Date.now());
-
-useEffect(() => {
-  const timer = setInterval(() => {
-    setCurrentTime(Date.now());
-  }, 1000);
-
-  return () => clearInterval(timer);
-}, []);
   const [exams, setExams] = useState<Exam[]>([]);
+  const [currentTime, setCurrentTime] = useState(Date.now());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -47,33 +83,11 @@ useEffect(() => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const testsPerPage = 10;
-  function getCountdown(date: string) {
-  const remaining = Math.max(
-    0,
-    new Date(date).getTime() - currentTime
-  );
 
-  const days = Math.floor(remaining / 86400000);
-  const hours = Math.floor((remaining % 86400000) / 3600000);
-  const minutes = Math.floor((remaining % 3600000) / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-
-  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-}
-function isSetAvailable(set: ExamSet) {
-  return (
-    set.isPublished ||
-    (!!set.availableFrom &&
-      new Date(set.availableFrom).getTime() <= currentTime)
-  );
-}
-function isTestAvailable(test: Test) {
-  return (
-    test.isPublished ||
-    (!!test.availableFrom &&
-      new Date(test.availableFrom).getTime() <= currentTime)
-  );
-}
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     async function fetchTests() {
@@ -115,58 +129,206 @@ function isTestAvailable(test: Test) {
     fetchTests();
   }, []);
 
+  function getCountdown(date: string) {
+    const remaining = Math.max(
+      0,
+      new Date(date).getTime() - currentTime
+    );
+
+    const days = Math.floor(remaining / 86400000);
+    const hours = Math.floor((remaining % 86400000) / 3600000);
+    const minutes = Math.floor((remaining % 3600000) / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+
+    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  function isSetAvailable(set: ExamSet) {
+    return (
+      set.isPublished ||
+      (!!set.availableFrom &&
+        new Date(set.availableFrom).getTime() <= currentTime)
+    );
+  }
+
+  function isTestAvailable(test: Test) {
+    return (
+      test.isPublished ||
+      (!!test.availableFrom &&
+        new Date(test.availableFrom).getTime() <= currentTime)
+    );
+  }
+
   const groupedTestIds = new Set(
     exams.flatMap((exam) => exam.sets.map((set) => set.id))
   );
 
   const oldTests = tests.filter((test) => !groupedTestIds.has(test.id));
 
-const filteredExams = exams.filter((exam) => {
-  const searchText = search.toLowerCase();
+  const searchText = search.trim().toLowerCase();
 
-  const matchesSearch =
-    exam.name.toLowerCase().includes(searchText) ||
-    exam.sets.some((set) =>
-      set.title.toLowerCase().includes(searchText)
-    );
+  const filteredExams = exams.filter((exam) => {
+    const matchesSearch =
+      exam.name.toLowerCase().includes(searchText) ||
+      exam.sets.some((set) =>
+        set.title.toLowerCase().includes(searchText)
+      );
 
-  const matchesCategory =
-    selectedExam === "all" || exam.id.toString() === selectedExam;
+    const matchesCategory =
+      selectedExam === "all" || exam.id.toString() === selectedExam;
 
-  return matchesSearch && matchesCategory;
-});
+    return matchesSearch && matchesCategory;
+  });
 
   const filteredTests = oldTests.filter((test) =>
-    test.title.toLowerCase().includes(search.toLowerCase())
+    test.title.toLowerCase().includes(searchText)
   );
 
   const totalPages = Math.ceil(filteredTests.length / testsPerPage);
-  const startIndex = (currentPage - 1) * testsPerPage;
-
+  const safePage = Math.min(currentPage, Math.max(totalPages, 1));
+  const startIndex = (safePage - 1) * testsPerPage;
   const paginatedTests = filteredTests.slice(
     startIndex,
     startIndex + testsPerPage
   );
 
+  const totalSets = exams.reduce(
+    (total, exam) => total + exam.sets.length,
+    0
+  );
+
+  const availableSets = exams.reduce(
+    (total, exam) =>
+      total + exam.sets.filter(isSetAvailable).length,
+    0
+  );
+
+  const cardStyle = {
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "18px",
+    background: "#ffffff",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "10px",
+  };
+
+  function Status({ available, soon }: { available: boolean; soon?: boolean }) {
+    const color = available
+      ? "#15803d"
+      : soon
+        ? "#b45309"
+        : "#b91c1c";
+
+    const background = available
+      ? "#dcfce7"
+      : soon
+        ? "#fef3c7"
+        : "#fee2e2";
+
+    const label = available
+      ? "Available Now"
+      : soon
+        ? "Available Soon"
+        : "Not Published";
+
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          width: "fit-content",
+          padding: "6px 11px",
+          borderRadius: "30px",
+          background,
+          color,
+          fontSize: "12px",
+          fontWeight: 800,
+        }}
+      >
+        {label}
+      </span>
+    );
+  }
+
   return (
-    <main className="dashboard-shell">
-      <div className="dashboard-container">
-        <header className="dashboard-header">
+    <main style={styles.page}>
+      <div style={styles.container}>
+        <header style={styles.header}>
           <div>
-            <h1 className="dashboard-title">Available Mock Tests</h1>
-            <p className="dashboard-subtitle">
-              Practice for State SSC and PCS examinations.
+            <p
+              style={{
+                margin: "0 0 8px",
+                color: "#bfdbfe",
+                fontSize: "13px",
+                fontWeight: 800,
+                letterSpacing: "1.5px",
+              }}
+            >
+              STATE SSC & PCS PREPARATION
+            </p>
+            <h1 style={{ margin: 0, fontSize: "clamp(25px, 4vw, 36px)" }}>
+              Available Mock Tests
+            </h1>
+            <p style={{ color: "#dbeafe", margin: "10px 0 0" }}>
+              Choose your exam, practice regularly and improve your score.
             </p>
           </div>
 
-          <a href="/" className="dashboard-button">
-            Home
+          <a
+            href="/"
+            style={{
+              ...styles.button,
+              background: "white",
+              color: "#1d4ed8",
+            }}
+          >
+            ← Home
           </a>
         </header>
 
-        <section className="results-panel">
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: "14px",
+            marginBottom: "22px",
+          }}
+        >
+          {[
+            { label: "Exam Categories", value: exams.length },
+            { label: "Total Exam Sets", value: totalSets },
+            { label: "Available Sets", value: availableSets },
+            { label: "Other Mock Tests", value: oldTests.length },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                background: "white",
+                border: "1px solid #e2e8f0",
+                borderRadius: "14px",
+                padding: "18px",
+              }}
+            >
+              <p style={{ ...styles.muted, margin: 0 }}>{item.label}</p>
+              <h2 style={{ margin: "8px 0 0", fontSize: "28px" }}>
+                {item.value}
+              </h2>
+            </div>
+          ))}
+        </section>
+
+        <section style={styles.panel}>
+          <div style={{ marginBottom: "22px" }}>
+            <h2 style={{ margin: "0 0 6px", fontSize: "21px" }}>
+              Find Your Mock Test
+            </h2>
+            <p style={{ ...styles.muted, margin: 0 }}>
+              Search by exam name or set title.
+            </p>
+          </div>
+
           <input
-            type="text"
+            type="search"
             placeholder="Search exams or mock tests..."
             value={search}
             onChange={(e) => {
@@ -175,243 +337,409 @@ const filteredExams = exams.filter((exam) => {
             }}
             style={{
               width: "100%",
-              padding: "12px",
-              marginBottom: "20px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
+              boxSizing: "border-box",
+              padding: "14px 16px",
+              marginBottom: "18px",
+              border: "1px solid #cbd5e1",
+              borderRadius: "11px",
               fontSize: "16px",
+              outlineColor: "#2563eb",
             }}
           />
+
           {!loading && !error && exams.length > 0 && (
-  <div
-    style={{
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "10px",
-      marginBottom: "20px",
-    }}
-  >
-    <button
-      onClick={() => setSelectedExam("all")}
-      style={{
-        padding: "10px 18px",
-        borderRadius: "8px",
-        border: "1px solid #2563eb",
-        background: selectedExam === "all" ? "#2563eb" : "white",
-        color: selectedExam === "all" ? "white" : "#2563eb",
-        cursor: "pointer",
-        fontWeight: "bold",
-      }}
-    >
-      All Exams
-    </button>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "9px",
+                marginBottom: "24px",
+              }}
+            >
+              {[
+                { id: "all", name: "All Exams" },
+                ...exams.map((exam) => ({
+                  id: exam.id.toString(),
+                  name: exam.name,
+                })),
+              ].map((item) => {
+                const active = selectedExam === item.id;
 
-    {exams.map((exam) => (
-      <button
-        key={exam.id}
-        onClick={() => setSelectedExam(exam.id.toString())}
-        style={{
-          padding: "10px 18px",
-          borderRadius: "8px",
-          border: "1px solid #2563eb",
-          background:
-            selectedExam === exam.id.toString() ? "#2563eb" : "white",
-          color:
-            selectedExam === exam.id.toString() ? "white" : "#2563eb",
-          cursor: "pointer",
-          fontWeight: "bold",
-        }}
-      >
-        {exam.name}
-      </button>
-    ))}
-  </div>
-)}
-
-          {loading && <p>Loading exams and tests...</p>}
-
-          {error && <p style={{ color: "red" }}>{error}</p>}
-
-          {!loading &&
-         !error &&
-          filteredExams.length === 0 &&
-          (selectedExam !== "all" || filteredTests.length === 0) && (
-         <p>No matching exams or tests found.</p>
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setSelectedExam(item.id);
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: "10px 15px",
+                      borderRadius: "30px",
+                      border: active
+                        ? "1px solid #1d4ed8"
+                        : "1px solid #cbd5e1",
+                      background: active ? "#1d4ed8" : "white",
+                      color: active ? "white" : "#334155",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {item.name}
+                  </button>
+                );
+              })}
+            </div>
           )}
 
-     {!loading && !error && filteredExams.map((exam) => (
-  <div
-    key={exam.id}
-    style={{
-      padding: "20px",
-      marginBottom: "20px",
-      border: "1px solid #e5eaf2",
-      borderRadius: "12px",
-    }}
-  >
-    <h2 style={{ marginBottom: "8px" }}>{exam.name}</h2>
+          {loading && (
+            <div style={{ padding: "35px", textAlign: "center" }}>
+              <p style={{ color: "#475569" }}>Loading exams and tests...</p>
+            </div>
+          )}
 
-    <p style={{ color: "#64748b", marginBottom: "18px" }}>
-      {exam.description || "Choose an exam set to start practicing."}
-    </p>
+          {error && (
+            <div
+              style={{
+                padding: "16px",
+                borderRadius: "10px",
+                background: "#fee2e2",
+                color: "#991b1b",
+              }}
+            >
+              {error}
+            </div>
+          )}
 
-    {exam.sets.length === 0 ? (
-      <p>No sets available yet.</p>
-    ) : (
-      <div style={{ display: "grid", gap: "12px" }}>
-        {exam.sets.map((set, index) => (
-          <div
-            key={set.id}
-            style={{
-              padding: "15px",
-              background: "#f8fafc",
-              borderRadius: "8px",
-              border: "1px solid #e2e8f0",
-            }}
-          >
-            <h3>Set {set.setNumber ?? index + 1}</h3>
-            <p>{set.title}</p>
-
-            <p style={{ color: "#64748b", margin: "8px 0" }}>
-              Questions: {set.questionCount} | Duration: {set.duration} minutes
-            </p>
-
-{set.questionCount === 0 ? (
-  <p style={{ color: "red", fontWeight: "bold" }}>
-    No Questions Available
-  </p>
-) : isSetAvailable(set) ? (
-              <>
-                <p style={{ color: "green", fontWeight: "bold" }}>
-                  Available Now
-                </p>
-                <a
-                  href={`/exam?testId=${set.id}`}
-                  className="dashboard-button"
-                >
-                  Start Exam
-                </a>
-              </>
-            ) : !set.isPublished && set.availableFrom ? (
-              <div style={{ color: "#d97706", fontWeight: "bold" }}>
-                <span
-  style={{
-    display: "inline-block",
-    background: "#fef3c7",
-    color: "#92400e",
-    padding: "6px 12px",
-    borderRadius: "6px",
-    marginBottom: "8px",
-  }}
->
-  Available Soon
-</span>
-                <p>
-                  Releases on:{" "}
-                  {new Date(set.availableFrom).toLocaleString("en-IN")}
-                </p>
-                <p style={{ fontSize: "18px", marginTop: "8px" }}>
-                  Releases in: {getCountdown(set.availableFrom)}
+          {!loading &&
+            !error &&
+            filteredExams.length === 0 &&
+            (selectedExam !== "all" || filteredTests.length === 0) && (
+              <div
+                style={{
+                  padding: "35px 15px",
+                  textAlign: "center",
+                  background: "#f8fafc",
+                  borderRadius: "12px",
+                }}
+              >
+                <h3>No matching exams or tests found.</h3>
+                <p style={styles.muted}>
+                  Try another search or select All Exams.
                 </p>
               </div>
-            ) : (
-              <p style={{ color: "red", fontWeight: "bold" }}>
-                Not Published
-              </p>
             )}
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-))}
 
-{!loading && !error && selectedExam === "all" && filteredTests.length > 0 && (
-  <>
-    <h2 style={{ marginBottom: "15px" }}>Other Mock Tests</h2>
+          {!loading &&
+            !error &&
+            filteredExams.map((exam) => (
+              <div
+                key={exam.id}
+                style={{
+                  marginBottom: "24px",
+                  border: "1px solid #dbeafe",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "19px 20px",
+                    background: "#eff6ff",
+                    borderBottom: "1px solid #dbeafe",
+                  }}
+                >
+                  <h2 style={{ margin: 0, fontSize: "21px" }}>
+                    {exam.name}
+                  </h2>
+                  <p
+                    style={{
+                      color: "#475569",
+                      margin: "7px 0 0",
+                      fontSize: "14px",
+                    }}
+                  >
+                    {exam.description ||
+                      "Choose an exam set to start practicing."}
+                  </p>
+                  <p
+                    style={{
+                      color: "#1d4ed8",
+                      fontWeight: 700,
+                      fontSize: "13px",
+                      margin: "10px 0 0",
+                    }}
+                  >
+                    {exam.sets.length} exam set(s)
+                  </p>
+                </div>
 
-    {paginatedTests.map((test) => (
-      <div
-        key={test.id}
-        style={{
-          padding: "20px 0",
-          borderBottom: "1px solid #e5eaf2",
-        }}
-      >
-        <h3>{test.title}</h3>
-        <p>{test.description || "Practice mock test."}</p>
+                <div
+                  style={{
+                    padding: "18px",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: "14px",
+                  }}
+                >
+                  {exam.sets.length === 0 ? (
+                    <p style={styles.muted}>No sets available yet.</p>
+                  ) : (
+                    exam.sets.map((set, index) => {
+                      const available = isSetAvailable(set);
+                      const soon =
+                        !set.isPublished && !!set.availableFrom;
 
-        <p style={{ color: "#64748b", marginTop: "8px" }}>
-          Total Questions: {test.questionCount}
-        </p>
+                      return (
+                        <article key={set.id} style={cardStyle}>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: "#1d4ed8",
+                                fontSize: "12px",
+                                fontWeight: 800,
+                              }}
+                            >
+                              SET {set.setNumber ?? index + 1}
+                            </span>
+                            {set.questionCount > 0 && (
+                              <Status available={available} soon={soon} />
+                            )}
+                          </div>
 
-        <p style={{ color: "#64748b", marginTop: "5px" }}>
-          Duration: {test.duration} minutes
-        </p>
+                          <h3 style={{ margin: 0, fontSize: "17px" }}>
+                            {set.title}
+                          </h3>
 
-        {isTestAvailable(test) ? (
-          <>
-            <p style={{ color: "green", fontWeight: "bold" }}>
-              Available Now
-            </p>
-            <a
-              href={`/exam?testId=${test.id}`}
-              className="dashboard-button"
-            >
-              Start Test
-            </a>
-          </>
-        ) : !test.isPublished && test.availableFrom ? (
-          <div style={{ color: "#d97706", fontWeight: "bold" }}>
-            <p>
-              Releases on:{" "}
-              {new Date(test.availableFrom).toLocaleString("en-IN")}
-            </p>
-            <p style={{ fontSize: "18px" }}>
-              Releases in: {getCountdown(test.availableFrom)}
-            </p>
-            <button disabled>Available Soon</button>
-          </div>
-        ) : (
-          <p style={{ color: "red", fontWeight: "bold" }}>
-            Not Published
-          </p>
-        )}
-      </div>
-    ))}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "12px",
+                              color: "#64748b",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <span>📝 {set.questionCount} Questions</span>
+                            <span>⏱ {set.duration} Minutes</span>
+                          </div>
 
-    {totalPages > 1 && (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: "15px",
-          padding: "20px 0",
-        }}
-      >
-        <button
-          onClick={() => setCurrentPage((page) => page - 1)}
-          disabled={currentPage === 1}
-        >
-          Previous
-        </button>
+                          {set.questionCount === 0 ? (
+                            <p
+                              style={{
+                                color: "#b91c1c",
+                                fontWeight: 700,
+                                fontSize: "13px",
+                              }}
+                            >
+                              No Questions Available
+                            </p>
+                          ) : available ? (
+                            <a
+                              href={`/exam?testId=${set.id}`}
+                              style={{ ...styles.button, textAlign: "center" }}
+                            >
+                              Start Exam →
+                            </a>
+                          ) : soon ? (
+                            <div
+                              style={{
+                                background: "#fffbeb",
+                                borderRadius: "9px",
+                                padding: "11px",
+                                color: "#92400e",
+                                fontSize: "13px",
+                              }}
+                            >
+                              <strong>Releases on:</strong>
+                              <p style={{ margin: "5px 0" }}>
+                                {new Date(set.availableFrom!).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </p>
+                              <strong>Releases in:</strong>
+                              <p
+                                style={{
+                                  margin: "5px 0 0",
+                                  fontWeight: 800,
+                                  fontSize: "15px",
+                                }}
+                              >
+                                {getCountdown(set.availableFrom!)}
+                              </p>
+                            </div>
+                          ) : (
+                            <Status available={false} />
+                          )}
+                        </article>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ))}
 
-        <span>
-          Page {currentPage} of {totalPages}
-        </span>
+          {!loading &&
+            !error &&
+            selectedExam === "all" &&
+            filteredTests.length > 0 && (
+              <div style={{ marginTop: "28px" }}>
+                <h2 style={{ fontSize: "21px", marginBottom: "15px" }}>
+                  Other Mock Tests
+                </h2>
 
-        <button
-          onClick={() => setCurrentPage((page) => page + 1)}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </button>
-      </div>
-    )}
-  </>
-)}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: "14px",
+                  }}
+                >
+                  {paginatedTests.map((test) => {
+                    const available = isTestAvailable(test);
+                    const soon =
+                      !test.isPublished && !!test.availableFrom;
+
+                    return (
+                      <article key={test.id} style={cardStyle}>
+                        <Status available={available} soon={soon} />
+
+                        <h3 style={{ margin: 0, fontSize: "17px" }}>
+                          {test.title}
+                        </h3>
+
+                        <p
+                          style={{
+                            ...styles.muted,
+                            margin: 0,
+                          }}
+                        >
+                          {test.description || "Practice mock test."}
+                        </p>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "12px",
+                            color: "#64748b",
+                            fontSize: "13px",
+                          }}
+                        >
+                          <span>📝 {test.questionCount} Questions</span>
+                          <span>⏱ {test.duration} Minutes</span>
+                        </div>
+
+                        {test.questionCount === 0 ? (
+                          <p
+                            style={{
+                              color: "#b91c1c",
+                              fontWeight: 700,
+                              fontSize: "13px",
+                            }}
+                          >
+                            No Questions Available
+                          </p>
+                        ) : available ? (
+                          <a
+                            href={`/exam?testId=${test.id}`}
+                            style={{ ...styles.button, textAlign: "center" }}
+                          >
+                            Start Test →
+                          </a>
+                        ) : soon ? (
+                          <div
+                            style={{
+                              background: "#fffbeb",
+                              borderRadius: "9px",
+                              padding: "11px",
+                              color: "#92400e",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <strong>Releases on:</strong>
+                            <p style={{ margin: "5px 0" }}>
+                              {new Date(test.availableFrom!).toLocaleString(
+                                "en-IN"
+                              )}
+                            </p>
+                            <strong>Releases in:</strong>
+                            <p style={{ margin: "5px 0 0", fontWeight: 800 }}>
+                              {getCountdown(test.availableFrom!)}
+                            </p>
+                          </div>
+                        ) : (
+                          <Status available={false} />
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+
+                {totalPages > 1 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "16px",
+                      padding: "24px 0 5px",
+                    }}
+                  >
+                    <button
+                      onClick={() =>
+                        setCurrentPage((page) => Math.max(1, page - 1))
+                      }
+                      disabled={safePage === 1}
+                      style={{
+                        ...styles.button,
+                        opacity: safePage === 1 ? 0.5 : 1,
+                      }}
+                    >
+                      Previous
+                    </button>
+
+                    <span style={{ color: "#475569", fontSize: "14px" }}>
+                      Page {safePage} of {totalPages}
+                    </span>
+
+                    <button
+                      onClick={() =>
+                        setCurrentPage((page) =>
+                          Math.min(totalPages, page + 1)
+                        )
+                      }
+                      disabled={safePage === totalPages}
+                      style={{
+                        ...styles.button,
+                        opacity: safePage === totalPages ? 0.5 : 1,
+                      }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
         </section>
+
+        <p
+          style={{
+            textAlign: "center",
+            color: "#94a3b8",
+            fontSize: "12px",
+            marginTop: "22px",
+          }}
+        >
+          State SSC & PCS Mock Exam Platform
+        </p>
       </div>
     </main>
   );
